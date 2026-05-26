@@ -18,14 +18,11 @@ export async function GET(req: NextRequest) {
         defined: !!supabaseAnonKey,
         length: supabaseAnonKey.length,
         prefix: supabaseAnonKey ? `${supabaseAnonKey.substring(0, 8)}...` : 'NONE',
-        isPlaceholder: supabaseAnonKey === 'YOUR_SUPABASE_ANON_KEY_HERE' || supabaseAnonKey === 'NEXT_PUBLIC_SUPABASE_ANON_KEY'
-      },
-      GEMINI_API_KEY: {
-        defined: !!geminiApiKey,
-        length: geminiApiKey.length,
-        prefix: geminiApiKey ? `${geminiApiKey.substring(0, 5)}...` : 'NONE',
-        isPlaceholder: geminiApiKey === 'YOUR_GEMINI_API_KEY_HERE'
+        isPlaceholder: false
       }
+    },
+    databaseSchemaInfo: {
+      exposedTables: []
     },
     tableScans: {}
   };
@@ -46,6 +43,35 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    // Fetch OpenAPI spec directly from Supabase REST endpoint
+    const swaggerUrl = `${sanitizedUrl}/rest/v1/`;
+    const res = await fetch(swaggerUrl, {
+      headers: {
+        'apikey': supabaseAnonKey,
+        'Authorization': `Bearer ${supabaseAnonKey}`
+      }
+    });
+
+    if (res.ok) {
+      const swagger = await res.json();
+      if (swagger && swagger.definitions) {
+        report.databaseSchemaInfo.exposedTables = Object.keys(swagger.definitions);
+        report.databaseSchemaInfo.fullDefinitionsCount = Object.keys(swagger.definitions).length;
+      } else if (swagger && swagger.paths) {
+        // Fallback check
+        const tables = Object.keys(swagger.paths)
+          .map(p => p.replace('/', ''))
+          .filter(p => p !== '');
+        report.databaseSchemaInfo.exposedTables = [...new Set(tables)];
+      }
+    } else {
+      report.databaseSchemaInfo.error = `Failed to fetch Swagger spec: ${res.status} ${res.statusText}`;
+    }
+  } catch (swaggerErr: any) {
+    report.databaseSchemaInfo.error = `Swagger fetch crashed: ${swaggerErr.message}`;
+  }
+
+  try {
     const supabase = createClient(sanitizedUrl, supabaseAnonKey);
     const tablesToScan = [
       'Monthly_Activity_Data',
@@ -58,7 +84,6 @@ export async function GET(req: NextRequest) {
 
     for (const table of tablesToScan) {
       try {
-        // Try getting actual data rows
         const { data, error } = await supabase
           .from(table)
           .select('*')
