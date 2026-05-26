@@ -242,10 +242,6 @@ export async function POST(req: NextRequest) {
       period: d.data_period
     }));
 
-    // Initialize Gemini using `@google/generative-ai`
-    const ai = new GoogleGenerativeAI(apiKey);
-    const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
-
     const systemPrompt = `You are the "FreshLane Retail Leadership Review AI Analyst", a premium business intelligence advisor built using Google Antigravity 2.0.
 Your goal is to answer executive questions with high precision, basing all facts on the provided data context.
 
@@ -275,6 +271,13 @@ DIRECTIONS:
 4. Format your responses beautifully using clear Markdown headings, bullet points, bold emphasis, and neat text tables. Keep your answers executive-level, analytical, direct, and professional.
 5. In your closing line, note the active database scope you queried (e.g. "Analyzed from active dataset: ${dataSource} | Query Scope: ${filterReason}").`;
 
+    // Initialize Gemini using `@google/generative-ai`
+    const ai = new GoogleGenerativeAI(apiKey);
+    const model = ai.getGenerativeModel({ 
+      model: 'gemini-1.5-flash',
+      systemInstruction: systemPrompt 
+    });
+
     // Package chat history
     let history = messages.slice(0, -1).map((m: any) => ({
       role: m.role === 'assistant' ? 'model' : 'user',
@@ -289,7 +292,6 @@ DIRECTIONS:
     // Generate output
     const chat = model.startChat({
       history: history,
-      systemInstruction: systemPrompt,
     });
 
     const result = await chat.sendMessage(latestMessage);
