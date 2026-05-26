@@ -444,12 +444,12 @@ DIRECTIONS:
 4. Format your responses beautifully using clear Markdown headings, bullet points, bold emphasis, and neat text tables. Keep your answers executive-level, analytical, direct, and professional.
 5. In your closing line, note the active database scope you queried (e.g. "Analyzed from active dataset: ${dataSource} | Query Scope: ${filterReason}").`;
 
-    // Initialize Gemini using `@google/generative-ai`
+    // Initialize Gemini and try different models in sequence to handle legacy/restricted keys
+    const modelsToTry = ['gemini-1.5-flash', 'gemini-pro', 'gemini-1.5-pro'];
+    let result = null;
+    let lastGeminiError = '';
+    
     const ai = new GoogleGenerativeAI(apiKey);
-    const model = ai.getGenerativeModel({ 
-      model: 'gemini-1.5-flash',
-      systemInstruction: systemPrompt 
-    });
 
     // Package chat history
     let history = messages.slice(0, -1).map((m: any) => ({
@@ -462,12 +462,33 @@ DIRECTIONS:
       history = history.slice(1);
     }
 
-    // Generate output
-    const chat = model.startChat({
-      history: history,
-    });
+    for (const modelName of modelsToTry) {
+      try {
+        console.log(`Attempting chat generation using model: ${modelName}`);
+        const model = ai.getGenerativeModel({ 
+          model: modelName,
+          systemInstruction: systemPrompt 
+        });
 
-    const result = await chat.sendMessage(latestMessage);
+        const chat = model.startChat({
+          history: history,
+        });
+
+        result = await chat.sendMessage(latestMessage);
+        if (result && result.response) {
+          console.log(`Successfully generated content using model: ${modelName}`);
+          break; // Succeeded!
+        }
+      } catch (err: any) {
+        console.warn(`Model ${modelName} failed:`, err.message);
+        lastGeminiError = err.message;
+      }
+    }
+
+    if (!result) {
+      throw new Error(lastGeminiError || 'All generative models failed to initialize');
+    }
+
     const responseText = result.response.text();
 
     return NextResponse.json({
