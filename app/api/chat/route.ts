@@ -76,8 +76,8 @@ const getDatasetSummary = (dataset: any[]) => {
   };
 };
 
-// Edge Intelligence Offline Fallback Analyst (guarantees 100% operational uptime)
-const getOfflineFallbackResponse = (query: string, summary: any, dataset: any[]) => {
+// Edge Intelligence Offline Fallback Analyst (guarantees 100% operational uptime & robust debugging)
+const getOfflineFallbackResponse = (query: string, summary: any, dataset: any[], errorMessage: string = '') => {
   const queryLower = query.toLowerCase();
   const latestMonth = '2025-08';
   const latestData = dataset.filter(d => d.data_period === latestMonth);
@@ -86,6 +86,11 @@ const getOfflineFallbackResponse = (query: string, summary: any, dataset: any[])
   const uniqueCities = Array.from(new Set(dataset.map(d => (d.city || '').toLowerCase()).filter(Boolean)));
   const uniqueFormats = Array.from(new Set(dataset.map(d => (d.store_format || '').toLowerCase()).filter(Boolean)));
   
+  // Construct dynamic error debug footer to help Vercel environment variable diagnostics
+  const debugFooter = errorMessage 
+    ? `\n\n---\n⚠️ **Gemini API Service Connection Fail [Technical Debug]**:\n\`\`\`text\n${errorMessage}\n\`\`\`\n*(This exact error is captured from the Google AI servers to assist in Vercel Variable / billing resolution.)*`
+    : `\n\n---\n💡 *To reactivate full natural language analytical intelligence, please ensure your \`GEMINI_API_KEY\` is active in Vercel settings and trigger a redeployment.*`;
+
   let content = `### 💡 Operational Analyst Safeguard (Active)
 We encountered a connection or configuration issue with the Gemini AI service (e.g., rate limits, region restrictions, or an inactive API key). 
 To ensure zero operational downtime, the **FreshLane Edge Intelligence Engine** has compiled the answer directly from the 2,520 real-world store records:
@@ -127,7 +132,7 @@ ${cityLatestRecords.map((s, idx) => `${idx + 1}. **${s.store_name}** (${s.store_
 - **Average Wastage**: **${avgWastage}%**
 - **Average Customer Rating**: **${avgRating} ★**
 `;
-    return content;
+    return content + debugFooter;
   }
 
   // 2. Detect if query mentions a specific store format
@@ -161,7 +166,7 @@ ${[...formatLatestRecords]
   .map(s => `- **${s.store_name}** (${s.city}): Revenue **₹${s.revenue_inr_thousand}K**, Rating: **${s.avg_customer_rating} ★**`)
   .join('\n')}
 `;
-    return content;
+    return content + debugFooter;
   }
 
   // 3. Fallback to existing smart categories
@@ -235,12 +240,10 @@ Here is the global executive summary of operations:
 
 **Regional Revenue & Efficiency Matrix:**
 ${summary.regions.map((r: any) => `- **${r.region}**: Revenue **₹${(r.total_revenue_K / 1000).toFixed(2)}M**, Avg Rating **${r.avg_rating} ★**, Wastage **${r.avg_wastage_pct}%**`).join('\n')}
-
----
-💡 *To reactivate full natural language analytical intelligence, please ensure your \`GEMINI_API_KEY\` is active in Vercel settings and trigger a redeployment.*`;
+`;
   }
 
-  return content;
+  return content + debugFooter;
 };
 
 export async function POST(req: NextRequest) {
@@ -480,7 +483,7 @@ DIRECTIONS:
     const summary = globalSummary || getDatasetSummary(ds);
     const msg = latestMessage || (messages && messages.length > 0 ? messages[messages.length - 1].content : '');
     
-    const fallbackResponse = getOfflineFallbackResponse(msg, summary, ds);
+    const fallbackResponse = getOfflineFallbackResponse(msg, summary, ds, error.message);
     
     return NextResponse.json({
       role: 'assistant',
