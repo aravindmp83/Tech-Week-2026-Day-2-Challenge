@@ -58,19 +58,20 @@ export async function GET(req: NextRequest) {
 
     for (const table of tablesToScan) {
       try {
-        // Try getting a count of rows
-        const { count, error } = await supabase
+        // Try getting actual data rows
+        const { data, error } = await supabase
           .from(table)
-          .select('*', { count: 'exact', head: true });
+          .select('*')
+          .limit(3);
 
         if (!error) {
           report.tableScans[table] = {
             exists: true,
-            rowCount: count !== null ? count : 'Unknown',
-            status: 'SUCCESS'
+            rowCount: data ? data.length : 0,
+            status: 'SUCCESS',
+            previewRow: data && data.length > 0 ? data[0] : 'EMPTY_TABLE'
           };
         } else {
-          // If it fails with code PGRST205, table does not exist
           if (error.code === 'PGRST205') {
             report.tableScans[table] = {
               exists: false,
@@ -82,8 +83,7 @@ export async function GET(req: NextRequest) {
               exists: true,
               status: 'ERROR',
               code: error.code,
-              message: error.message,
-              details: error.details
+              message: error.message
             };
           }
         }
