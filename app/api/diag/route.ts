@@ -27,10 +27,7 @@ export async function GET(req: NextRequest) {
         isPlaceholder: geminiApiKey === 'YOUR_GEMINI_API_KEY_HERE'
       }
     },
-    databaseConnection: {
-      status: 'NOT ATTEMPTED',
-      details: null
-    }
+    tableScans: {}
   };
 
   // Sanitize Supabase URL
@@ -44,58 +41,63 @@ export async function GET(req: NextRequest) {
   report.environment.NEXT_PUBLIC_SUPABASE_URL.sanitizedValue = sanitizedUrl;
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    report.databaseConnection.status = 'FAILED';
-    report.databaseConnection.details = 'Supabase URL or Anon Key is missing in environment variables.';
+    report.error = 'Supabase credentials missing.';
     return NextResponse.json(report);
   }
 
   try {
     const supabase = createClient(sanitizedUrl, supabaseAnonKey);
-    
-    // Test Monthly_Activity_Data
-    const { data: data1, error: error1 } = await supabase
-      .from('Monthly_Activity_Data')
-      .select('*')
-      .limit(1);
+    const tablesToScan = [
+      'Monthly_Activity_Data',
+      'monthly_activity_data',
+      'monthly_activity',
+      'Yearly_Operations_Master',
+      'yearly_operations_master',
+      'yearly_operations'
+    ];
 
-    if (!error1) {
-      report.databaseConnection.status = 'SUCCESS';
-      report.databaseConnection.details = `Successfully connected to 'Monthly_Activity_Data'. First row fetched.`;
-      report.databaseConnection.rowCount = data1 ? data1.length : 0;
-      return NextResponse.json(report);
+    for (const table of tablesToScan) {
+      try {
+        // Try getting a count of rows
+        const { count, error } = await supabase
+          .from(table)
+          .select('*', { count: 'exact', head: true });
+
+        if (!error) {
+          report.tableScans[table] = {
+            exists: true,
+            rowCount: count !== null ? count : 'Unknown',
+            status: 'SUCCESS'
+          };
+        } else {
+          // If it fails with code PGRST205, table does not exist
+          if (error.code === 'PGRST205') {
+            report.tableScans[table] = {
+              exists: false,
+              status: 'TABLE_DOES_NOT_EXIST',
+              message: error.message
+            };
+          } else {
+            report.tableScans[table] = {
+              exists: true,
+              status: 'ERROR',
+              code: error.code,
+              message: error.message,
+              details: error.details
+            };
+          }
+        }
+      } catch (tableErr: any) {
+        report.tableScans[table] = {
+          exists: 'unknown',
+          status: 'CRASHED',
+          message: tableErr.message
+        };
+      }
     }
-
-    report.databaseConnection.Monthly_Activity_Data_Error = {
-      message: error1.message,
-      code: error1.code,
-      details: error1.details
-    };
-
-    // Test monthly_activity
-    const { data: data2, error: error2 } = await supabase
-      .from('monthly_activity')
-      .select('*')
-      .limit(1);
-
-    if (!error2) {
-      report.databaseConnection.status = 'SUCCESS';
-      report.databaseConnection.details = `Successfully connected to legacy 'monthly_activity'. First row fetched.`;
-      report.databaseConnection.rowCount = data2 ? data2.length : 0;
-      return NextResponse.json(report);
-    }
-
-    report.databaseConnection.monthly_activity_Error = {
-      message: error2.message,
-      code: error2.code,
-      details: error2.details
-    };
-
-    report.databaseConnection.status = 'FAILED';
-    report.databaseConnection.details = 'All database table scans failed. Check error details below.';
 
   } catch (err: any) {
-    report.databaseConnection.status = 'CRASHED';
-    report.databaseConnection.details = err.message;
+    report.error = `Client initialization crashed: ${err.message}`;
   }
 
   return NextResponse.json(report);
