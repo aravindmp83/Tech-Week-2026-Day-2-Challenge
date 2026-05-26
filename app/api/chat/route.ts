@@ -126,10 +126,15 @@ DIRECTIONS:
 5. In your closing line, note the active database scope you queried (e.g. "Analyzed from active dataset: ${dataSource}").`;
 
     // Package chat history
-    const history = messages.slice(0, -1).map((m: any) => ({
+    let history = messages.slice(0, -1).map((m: any) => ({
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: m.content }]
     }));
+
+    // Clean up history to satisfy Gemini API rules: first message must be from user ('user'), not AI ('model')
+    if (history.length > 0 && history[0].role === 'model') {
+      history = history.slice(1);
+    }
 
     // Generate output
     const chat = model.startChat({
