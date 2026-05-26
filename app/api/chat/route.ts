@@ -76,14 +76,123 @@ const getDatasetSummary = (dataset: any[]) => {
   };
 };
 
+// Edge Intelligence Offline Fallback Analyst (guarantees 100% operational uptime)
+const getOfflineFallbackResponse = (query: string, summary: any, dataset: any[]) => {
+  const queryLower = query.toLowerCase();
+  
+  let content = `### 💡 Operational Analyst Safeguard (Active)
+We encountered a connection or configuration issue with the Gemini AI service (e.g., rate limits, region restrictions, or an inactive API key). 
+To ensure zero operational downtime, the **FreshLane Edge Intelligence Engine** has compiled the answer directly from the 2,520 real-world store records:
+
+---
+
+`;
+
+  if (queryLower.includes('wastage') || queryLower.includes('struggling') || queryLower.includes('critical') || queryLower.includes('alert') || queryLower.includes('bad') || queryLower.includes('worst')) {
+    // Find top wastage stores in latest month (August 2025)
+    const latestMonth = '2025-08';
+    const latestData = dataset.filter(d => d.data_period === latestMonth);
+    
+    // Sort by wastage descending
+    const highestWastage = [...latestData]
+      .sort((a, b) => b.fresh_wastage_pct - a.fresh_wastage_pct)
+      .slice(0, 5);
+      
+    // Find stores meeting critical threshold: wastage > 8.5% and rating < 3.9
+    const criticalStores = latestData.filter(d => d.fresh_wastage_pct > 8.5 && d.avg_customer_rating < 3.9);
+
+    content += `#### 🚨 High Wastage & Critical Audit Signals (August 2025)
+Here are the stores requiring immediate operational intervention:
+
+**Top 5 Highest Wastage Locations:**
+${highestWastage.map(s => `- **${s.store_name}** (${s.region}): **${s.fresh_wastage_pct}%** wastage, rating: **${s.avg_customer_rating} ★**, stockouts: **${s.stockout_incidents}**`).join('\n')}
+
+**Critical Stores Matrix (Wastage > 8.5% and Rating < 3.9):**
+There are **${criticalStores.length}** stores currently breaching both risk thresholds in August 2025. 
+Key targets:
+${criticalStores.slice(0, 3).map(s => `- **${s.store_name}** (${s.region}): Wastage at **${s.fresh_wastage_pct}%**, Customer Rating is **${s.avg_customer_rating} ★**`).join('\n')}
+`;
+  } else if (queryLower.includes('revenue') || queryLower.includes('sales') || queryLower.includes('best') || queryLower.includes('highest') || queryLower.includes('top') || queryLower.includes('most')) {
+    const latestMonth = '2025-08';
+    const latestData = dataset.filter(d => d.data_period === latestMonth);
+    
+    // Sort by revenue descending
+    const topRevenue = [...latestData]
+      .sort((a, b) => b.revenue_inr_thousand - a.revenue_inr_thousand)
+      .slice(0, 5);
+
+    content += `#### 📈 Financial & Revenue Performance Leaders (August 2025)
+Here are the top-performing stores contributing to the portfolio:
+
+**Top 5 Highest Revenue Stores:**
+${topRevenue.map(s => `- **${s.store_name}** (${s.region}): **₹${(s.revenue_inr_thousand / 100).toFixed(2)}M** (Rating: **${s.avg_customer_rating} ★**, Footfall: **${s.monthly_footfall.toLocaleString()}**)`).join('\n')}
+
+**Global Portfolio Statistics:**
+- **Total Cumulative Revenue Logged**: ₹${(summary.total_revenue_K / 1000).toFixed(2)}M
+- **Average Customer Rating**: **${summary.avg_rating} ★**
+- **Average Wastage Rate**: **${summary.avg_wastage_pct}%**
+`;
+  } else if (queryLower.includes('north') || queryLower.includes('south') || queryLower.includes('east') || queryLower.includes('west')) {
+    const matchedRegion = ['north', 'south', 'east', 'west'].find(r => queryLower.includes(r)) || '';
+    const regionName = matchedRegion.charAt(0).toUpperCase() + matchedRegion.slice(1);
+    
+    const regSummary = summary.regions.find((r: any) => r.region.toLowerCase() === matchedRegion);
+    
+    const latestMonth = '2025-08';
+    const regionStores = dataset.filter(d => d.region.toLowerCase() === matchedRegion && d.data_period === latestMonth);
+    
+    const topStore = [...regionStores].sort((a, b) => b.revenue_inr_thousand - a.revenue_inr_thousand)[0];
+    const worstStore = [...regionStores].sort((a, b) => a.avg_customer_rating - b.avg_customer_rating)[0];
+
+    content += `#### 📍 Regional Performance Summary: ${regionName}
+Detailed audit for the **${regionName}** region:
+
+- **Store Count**: ${regSummary ? regSummary.record_count / 20 : regionStores.length} active locations
+- **Cumulative Revenue**: ₹${regSummary ? (regSummary.total_revenue_K / 1000).toFixed(2) : '0.00'}M
+- **Average Wastage Rate**: **${regSummary ? regSummary.avg_wastage_pct : '0.00'}%**
+- **Average Customer Rating**: **${regSummary ? regSummary.avg_rating : '0.00'} ★**
+
+**Key Store Highlights (August 2025):**
+- 🌟 **Star Performer**: **${topStore ? topStore.store_name : 'N/A'}** generating **₹${topStore ? (topStore.revenue_inr_thousand / 100).toFixed(2) : '0.00'}M** with a **${topStore ? topStore.avg_customer_rating : '0'} ★** rating.
+- ⚠️ **Operational Target**: **${worstStore ? worstStore.store_name : 'N/A'}** showing a low rating of **${worstStore ? worstStore.avg_customer_rating : '0'} ★** (Wastage: **${worstStore ? worstStore.fresh_wastage_pct : '0'}%**).
+`;
+  } else {
+    content += `#### 📊 Corporate Retail Portfolio Summary (2,520 Records)
+Here is the global executive summary of operations:
+
+| Metric | Portfolio Value |
+| :--- | :--- |
+| **Total Stores Logs** | ${summary.total_records} records (126 unique stores) |
+| **Total Cumulative Revenue** | ₹${(summary.total_revenue_K / 1000).toFixed(2)}M |
+| **Average Customer Rating** | ${summary.avg_rating} ★ |
+| **Average Fresh Produce Wastage** | ${summary.avg_wastage_pct}% |
+| **Total Footfall Count** | ${summary.total_footfall.toLocaleString()} visits |
+
+**Regional Revenue & Efficiency Matrix:**
+${summary.regions.map((r: any) => `- **${r.region}**: Revenue **₹${(r.total_revenue_K / 1000).toFixed(2)}M**, Avg Rating **${r.avg_rating} ★**, Wastage **${r.avg_wastage_pct}%**`).join('\n')}
+
+---
+💡 *To reactivate full natural language analytical intelligence, please ensure your \`GEMINI_API_KEY\` is active in Vercel settings and trigger a redeployment.*`;
+  }
+
+  return content;
+};
+
 export async function POST(req: NextRequest) {
+  let activeDataset: any[] = localStoreData;
+  let dataSource = 'Local JSON Compilation';
+  let globalSummary: any = null;
+  let latestMessage = '';
+  let messages: any[] = [];
+
   try {
-    const { messages } = await req.json();
+    const body = await req.json();
+    messages = body.messages || [];
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return NextResponse.json({ error: 'Invalid messages format' }, { status: 400 });
     }
 
-    const latestMessage = messages[messages.length - 1].content;
+    latestMessage = messages[messages.length - 1].content;
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey || apiKey === 'YOUR_GEMINI_API_KEY_HERE') {
@@ -92,10 +201,6 @@ export async function POST(req: NextRequest) {
         content: `### ⚠️ AI Engine Key Required\nTo enable natural language analytical queries, please provide your **GEMINI_API_KEY** in the \`.env.local\` file in your workspace root, or add it as an Environment Variable in Vercel.\n\n*Meanwhile, here is a mock database answer to show how I function:*\n\n**Question**: "${latestMessage}"\n\n**Simulated Response**:\n- In the **North region**, \`FreshLane Delhi Superstore 1\` is showing performance with an average customer rating of **3.67 ★**.\n- Across the chain, the total revenue logged in the 2,520 records is **₹5.14B** with an average customer rating of **4.12 ★**.\n- Please configure your Gemini API Key to enable complete AI-driven semantic queries against the entire real-world dataset!`
       });
     }
-
-    // Try fetching from live Supabase
-    let activeDataset = localStoreData;
-    let dataSource = 'Local JSON Compilation';
     
     if (supabaseUrl && supabaseAnonKey && supabaseUrl !== 'YOUR_SUPABASE_URL_HERE' && supabaseAnonKey !== 'YOUR_SUPABASE_ANON_KEY_HERE') {
       try {
@@ -143,7 +248,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Pre-aggregate global stats from activeDataset
-    const globalSummary = getDatasetSummary(activeDataset);
+    globalSummary = getDatasetSummary(activeDataset);
 
     // Apply smart filters to keep prompt size highly efficient and context response blazing fast
     let filteredRecords = activeDataset;
@@ -303,10 +408,18 @@ DIRECTIONS:
     });
 
   } catch (error: any) {
-    console.error('API Error:', error);
-    return NextResponse.json({ 
-      error: 'Failed to process AI chat response', 
-      details: error.message 
-    }, { status: 500 });
+    console.error('Gemini API Error caught, serving resilient offline edge fallback:', error);
+    
+    // Safely retrieve context variables
+    const ds = activeDataset || localStoreData || [];
+    const summary = globalSummary || getDatasetSummary(ds);
+    const msg = latestMessage || (messages && messages.length > 0 ? messages[messages.length - 1].content : '');
+    
+    const fallbackResponse = getOfflineFallbackResponse(msg, summary, ds);
+    
+    return NextResponse.json({
+      role: 'assistant',
+      content: fallbackResponse
+    });
   }
 }
