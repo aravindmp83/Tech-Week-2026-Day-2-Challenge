@@ -46,7 +46,14 @@ export async function POST(req: NextRequest) {
     
     if (supabaseUrl && supabaseAnonKey && supabaseUrl !== 'YOUR_SUPABASE_URL_HERE' && supabaseAnonKey !== 'YOUR_SUPABASE_ANON_KEY_HERE') {
       try {
-        const supabase = createClient(supabaseUrl, supabaseAnonKey);
+        let sanitizedUrl = supabaseUrl.trim();
+        if (sanitizedUrl.endsWith('/')) {
+          sanitizedUrl = sanitizedUrl.slice(0, -1);
+        }
+        if (sanitizedUrl.endsWith('/rest/v1')) {
+          sanitizedUrl = sanitizedUrl.slice(0, -8);
+        }
+        const supabase = createClient(sanitizedUrl, supabaseAnonKey);
         
         // 1. Try querying 'Monthly_Activity_Data'
         const { data: monthlyData, error: monthlyError } = await supabase

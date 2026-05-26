@@ -99,9 +99,16 @@ export default function FreshLaneDashboard() {
       }
 
       try {
-        const supabase = createClient(supabaseUrl, supabaseAnonKey);
+        let sanitizedUrl = supabaseUrl.trim();
+        if (sanitizedUrl.endsWith('/')) {
+          sanitizedUrl = sanitizedUrl.slice(0, -1);
+        }
+        if (sanitizedUrl.endsWith('/rest/v1')) {
+          sanitizedUrl = sanitizedUrl.slice(0, -8);
+        }
         
-        console.log("Attempting database fetch across potential tables...");
+        console.log(`Connecting to sanitized Supabase endpoint: ${sanitizedUrl}`);
+        const supabase = createClient(sanitizedUrl, supabaseAnonKey);
         
         // 1. Try querying 'Monthly_Activity_Data'
         const { data: monthlyData, error: monthlyError } = await supabase
