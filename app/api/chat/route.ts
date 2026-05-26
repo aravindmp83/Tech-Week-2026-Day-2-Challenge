@@ -48,23 +48,33 @@ export async function POST(req: NextRequest) {
       try {
         const supabase = createClient(supabaseUrl, supabaseAnonKey);
         
-        // Try monthly_activity table
+        // 1. Try querying 'Monthly_Activity_Data'
         const { data: monthlyData, error: monthlyError } = await supabase
-          .from('monthly_activity')
+          .from('Monthly_Activity_Data')
           .select('*');
           
         if (!monthlyError && monthlyData && monthlyData.length > 0) {
           activeDataset = monthlyData;
-          dataSource = 'Live Supabase [monthly_activity]';
+          dataSource = 'Live Supabase [Monthly_Activity_Data]';
         } else {
-          // Try monthly_activity_data table
-          const { data: altData, error: altError } = await supabase
-            .from('monthly_activity_data')
+          // 2. Try monthly_activity table
+          const { data: monthlyData2, error: monthlyError2 } = await supabase
+            .from('monthly_activity')
             .select('*');
             
-          if (!altError && altData && altData.length > 0) {
-            activeDataset = altData;
-            dataSource = 'Live Supabase [monthly_activity_data]';
+          if (!monthlyError2 && monthlyData2 && monthlyData2.length > 0) {
+            activeDataset = monthlyData2;
+            dataSource = 'Live Supabase [monthly_activity]';
+          } else {
+            // 3. Try monthly_activity_data table
+            const { data: altData, error: altError } = await supabase
+              .from('monthly_activity_data')
+              .select('*');
+              
+            if (!altError && altData && altData.length > 0) {
+              activeDataset = altData;
+              dataSource = 'Live Supabase [monthly_activity_data]';
+            }
           }
         }
       } catch (err) {

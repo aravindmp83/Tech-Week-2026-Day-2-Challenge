@@ -101,27 +101,42 @@ export default function FreshLaneDashboard() {
       try {
         const supabase = createClient(supabaseUrl, supabaseAnonKey);
         
-        // 1. Try querying 'monthly_activity' table
+        console.log("Attempting database fetch across potential tables...");
+        
+        // 1. Try querying 'Monthly_Activity_Data'
         const { data: monthlyData, error: monthlyError } = await supabase
-          .from('monthly_activity')
+          .from('Monthly_Activity_Data')
           .select('*');
         
         if (!monthlyError && monthlyData && monthlyData.length > 0) {
-          console.log(`Loaded ${monthlyData.length} records from 'monthly_activity'`);
+          console.log(`Loaded ${monthlyData.length} records from 'Monthly_Activity_Data'`);
           setData(monthlyData);
-          setDbSource('Supabase Live [monthly_activity]');
+          setDbSource('Supabase Live [Monthly_Activity_Data]');
         } else {
-          // 2. Try querying 'monthly_activity_data' alternative table
-          const { data: altData, error: altError } = await supabase
-            .from('monthly_activity_data')
+          console.log("Monthly_Activity_Data table fetch skipped or empty, trying monthly_activity...");
+          // 2. Try querying 'monthly_activity' table
+          const { data: monthlyData2, error: monthlyError2 } = await supabase
+            .from('monthly_activity')
             .select('*');
-
-          if (!altError && altData && altData.length > 0) {
-            console.log(`Loaded ${altData.length} records from 'monthly_activity_data'`);
-            setData(altData);
-            setDbSource('Supabase Live [monthly_activity_data]');
+          
+          if (!monthlyError2 && monthlyData2 && monthlyData2.length > 0) {
+            console.log(`Loaded ${monthlyData2.length} records from 'monthly_activity'`);
+            setData(monthlyData2);
+            setDbSource('Supabase Live [monthly_activity]');
           } else {
-            throw new Error(monthlyError?.message || altError?.message || 'Empty datasets returned');
+            console.log("monthly_activity table fetch skipped or empty, trying monthly_activity_data...");
+            // 3. Try querying 'monthly_activity_data' alternative table
+            const { data: altData, error: altError } = await supabase
+              .from('monthly_activity_data')
+              .select('*');
+
+            if (!altError && altData && altData.length > 0) {
+              console.log(`Loaded ${altData.length} records from 'monthly_activity_data'`);
+              setData(altData);
+              setDbSource('Supabase Live [monthly_activity_data]');
+            } else {
+              throw new Error(monthlyError?.message || monthlyError2?.message || altError?.message || 'Empty datasets returned');
+            }
           }
         }
       } catch (err) {
