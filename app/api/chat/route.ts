@@ -79,6 +79,12 @@ const getDatasetSummary = (dataset: any[]) => {
 // Edge Intelligence Offline Fallback Analyst (guarantees 100% operational uptime)
 const getOfflineFallbackResponse = (query: string, summary: any, dataset: any[]) => {
   const queryLower = query.toLowerCase();
+  const latestMonth = '2025-08';
+  const latestData = dataset.filter(d => d.data_period === latestMonth);
+
+  // Extract all unique cities and formats dynamically
+  const uniqueCities = Array.from(new Set(dataset.map(d => (d.city || '').toLowerCase()).filter(Boolean)));
+  const uniqueFormats = Array.from(new Set(dataset.map(d => (d.store_format || '').toLowerCase()).filter(Boolean)));
   
   let content = `### 💡 Operational Analyst Safeguard (Active)
 We encountered a connection or configuration issue with the Gemini AI service (e.g., rate limits, region restrictions, or an inactive API key). 
@@ -88,17 +94,82 @@ To ensure zero operational downtime, the **FreshLane Edge Intelligence Engine** 
 
 `;
 
-  if (queryLower.includes('wastage') || queryLower.includes('struggling') || queryLower.includes('critical') || queryLower.includes('alert') || queryLower.includes('bad') || queryLower.includes('worst')) {
-    // Find top wastage stores in latest month (August 2025)
-    const latestMonth = '2025-08';
-    const latestData = dataset.filter(d => d.data_period === latestMonth);
+  // 1. Detect if query mentions a specific city
+  const matchedCityLower = uniqueCities.find(c => queryLower.includes(c));
+  
+  if (matchedCityLower) {
+    const cityCapitalized = dataset.find(d => d.city && d.city.toLowerCase() === matchedCityLower)?.city || matchedCityLower;
     
-    // Sort by wastage descending
+    // Filter records for this city
+    const cityAllRecords = dataset.filter(d => d.city && d.city.toLowerCase() === matchedCityLower);
+    const cityLatestRecords = cityAllRecords.filter(d => d.data_period === latestMonth);
+    const uniqueStoreIds = Array.from(new Set(cityAllRecords.map(d => d.store_id)));
+    
+    // Calculate stats
+    const totalRev = cityLatestRecords.reduce((acc, curr) => acc + (curr.revenue_inr_thousand || 0), 0);
+    const avgWastage = cityLatestRecords.length > 0
+      ? (cityLatestRecords.reduce((acc, curr) => acc + (curr.fresh_wastage_pct || 0), 0) / cityLatestRecords.length).toFixed(2)
+      : '0.00';
+    const avgRating = cityLatestRecords.length > 0
+      ? (cityLatestRecords.reduce((acc, curr) => acc + (curr.avg_customer_rating || 0), 0) / cityLatestRecords.length).toFixed(2)
+      : '0.00';
+
+    content += `#### 📍 Store Directory & Count: ${cityCapitalized}
+There are **${uniqueStoreIds.length}** active unique FreshLane stores in **${cityCapitalized}**.
+
+**Active Stores List (August 2025):**
+${cityLatestRecords.map((s, idx) => `${idx + 1}. **${s.store_name}** (${s.store_format})
+   - ID: \`${s.store_id}\`
+   - Revenue: ₹${s.revenue_inr_thousand}K | Wastage: **${s.fresh_wastage_pct}%** | Customer Rating: **${s.avg_customer_rating} ★**`).join('\n')}
+
+**Monthly Aggregates for ${cityCapitalized} (August 2025):**
+- **Total City Revenue**: ₹${(totalRev).toLocaleString()}K (₹${(totalRev / 100).toFixed(2)} Lakhs)
+- **Average Wastage**: **${avgWastage}%**
+- **Average Customer Rating**: **${avgRating} ★**
+`;
+    return content;
+  }
+
+  // 2. Detect if query mentions a specific store format
+  const matchedFormatLower = uniqueFormats.find(f => queryLower.includes(f));
+  if (matchedFormatLower) {
+    const formatLabel = dataset.find(d => d.store_format && d.store_format.toLowerCase() === matchedFormatLower)?.store_format || matchedFormatLower;
+    
+    const formatAllRecords = dataset.filter(d => d.store_format && d.store_format.toLowerCase() === matchedFormatLower);
+    const formatLatestRecords = formatAllRecords.filter(d => d.data_period === latestMonth);
+    
+    const totalRev = formatLatestRecords.reduce((acc, curr) => acc + (curr.revenue_inr_thousand || 0), 0);
+    const avgWastage = formatLatestRecords.length > 0
+      ? (formatLatestRecords.reduce((acc, curr) => acc + (curr.fresh_wastage_pct || 0), 0) / formatLatestRecords.length).toFixed(2)
+      : '0.00';
+    const avgRating = formatLatestRecords.length > 0
+      ? (formatLatestRecords.reduce((acc, curr) => acc + (curr.avg_customer_rating || 0), 0) / formatLatestRecords.length).toFixed(2)
+      : '0.00';
+
+    content += `#### 🛍️ Format Deep Dive: ${formatLabel}
+Across the chain, we operate **${formatLatestRecords.length}** stores in the **${formatLabel}** format in the latest period (August 2025).
+
+**Key Format Statistics (August 2025):**
+- **Total Format Revenue**: ₹${(totalRev / 1000).toFixed(2)}M (₹${totalRev.toLocaleString()} Thousand)
+- **Average Wastage Rate**: **${avgWastage}%**
+- **Average Customer Rating**: **${avgRating} ★**
+
+**Top 3 Performers in this format:**
+${[...formatLatestRecords]
+  .sort((a, b) => b.revenue_inr_thousand - a.revenue_inr_thousand)
+  .slice(0, 3)
+  .map(s => `- **${s.store_name}** (${s.city}): Revenue **₹${s.revenue_inr_thousand}K**, Rating: **${s.avg_customer_rating} ★**`)
+  .join('\n')}
+`;
+    return content;
+  }
+
+  // 3. Fallback to existing smart categories
+  if (queryLower.includes('wastage') || queryLower.includes('struggling') || queryLower.includes('critical') || queryLower.includes('alert') || queryLower.includes('bad') || queryLower.includes('worst')) {
     const highestWastage = [...latestData]
       .sort((a, b) => b.fresh_wastage_pct - a.fresh_wastage_pct)
       .slice(0, 5);
       
-    // Find stores meeting critical threshold: wastage > 8.5% and rating < 3.9
     const criticalStores = latestData.filter(d => d.fresh_wastage_pct > 8.5 && d.avg_customer_rating < 3.9);
 
     content += `#### 🚨 High Wastage & Critical Audit Signals (August 2025)
@@ -113,10 +184,6 @@ Key targets:
 ${criticalStores.slice(0, 3).map(s => `- **${s.store_name}** (${s.region}): Wastage at **${s.fresh_wastage_pct}%**, Customer Rating is **${s.avg_customer_rating} ★**`).join('\n')}
 `;
   } else if (queryLower.includes('revenue') || queryLower.includes('sales') || queryLower.includes('best') || queryLower.includes('highest') || queryLower.includes('top') || queryLower.includes('most')) {
-    const latestMonth = '2025-08';
-    const latestData = dataset.filter(d => d.data_period === latestMonth);
-    
-    // Sort by revenue descending
     const topRevenue = [...latestData]
       .sort((a, b) => b.revenue_inr_thousand - a.revenue_inr_thousand)
       .slice(0, 5);
@@ -137,9 +204,7 @@ ${topRevenue.map(s => `- **${s.store_name}** (${s.region}): **₹${(s.revenue_in
     const regionName = matchedRegion.charAt(0).toUpperCase() + matchedRegion.slice(1);
     
     const regSummary = summary.regions.find((r: any) => r.region.toLowerCase() === matchedRegion);
-    
-    const latestMonth = '2025-08';
-    const regionStores = dataset.filter(d => d.region.toLowerCase() === matchedRegion && d.data_period === latestMonth);
+    const regionStores = latestData.filter(d => d.region.toLowerCase() === matchedRegion);
     
     const topStore = [...regionStores].sort((a, b) => b.revenue_inr_thousand - a.revenue_inr_thousand)[0];
     const worstStore = [...regionStores].sort((a, b) => a.avg_customer_rating - b.avg_customer_rating)[0];
