@@ -445,7 +445,16 @@ DIRECTIONS:
 5. In your closing line, note the active database scope you queried (e.g. "Analyzed from active dataset: ${dataSource} | Query Scope: ${filterReason}").`;
 
     // Initialize Gemini and try different models in sequence to handle legacy/restricted keys
-    const modelsToTry = ['gemini-1.5-flash', 'gemini-pro', 'gemini-1.5-pro'];
+    const modelsToTry = [
+      'gemini-3.5-flash',
+      'gemini-2.5-flash',
+      'gemini-2.0-flash',
+      'gemini-1.5-flash',
+      'gemini-pro',
+      'gemini-1.5-pro',
+      'gemini-2.5-pro',
+      'gemini-3.1-pro'
+    ];
     let result = null;
     let lastGeminiError = '';
     
