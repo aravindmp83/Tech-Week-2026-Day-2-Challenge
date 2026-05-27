@@ -13,14 +13,53 @@ import SignalsAlerts from '@/components/signals-alerts';
 import ChatWidget from '@/components/chat-widget';
 import InfoModal from '@/components/info-modals';
 
+
 // Initialize Supabase Client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 import localStoreData from './data/monthly_activity.json';
+import yearlyStoreMaster from './data/yearly_operations.json';
 
 // Beautiful Local Mock Store Data (Fallback)
 const fallbackStoreData = localStoreData;
+
+// Utility to enrich monthly activity records with yearly store master configurations
+const enrichStoreData = (monthlyData: any[]) => {
+  if (!monthlyData || monthlyData.length === 0) return [];
+  
+  // Create a map of store_id to yearly master record
+  const masterMap = new Map<string, any>();
+  yearlyStoreMaster.forEach((store: any) => {
+    if (store.store_id) {
+      masterMap.set(store.store_id, store);
+    }
+  });
+
+  return monthlyData.map((record: any) => {
+    const storeId = record.store_id;
+    const masterRecord = masterMap.get(storeId);
+    if (masterRecord) {
+      return {
+        ...record,
+        floor_area_sqft: masterRecord.floor_area_sqft,
+        total_staff: masterRecord.total_staff,
+        checkout_counters: masterRecord.checkout_counters,
+        self_checkout_counters: masterRecord.self_checkout_counters,
+        loyalty_members_enrolled: masterRecord.loyalty_members_enrolled,
+        omnichannel_pickup_enabled: masterRecord.omnichannel_pickup_enabled,
+        pickup_bays: masterRecord.pickup_bays,
+        cold_storage_units: masterRecord.cold_storage_units,
+        store_age_years: masterRecord.store_age_years,
+        last_refurbishment_year: masterRecord.last_refurbishment_year,
+        parking_slots: masterRecord.parking_slots,
+        active_categories_count: masterRecord.active_categories_count,
+        nps_score_baseline: masterRecord.nps_score_baseline,
+      };
+    }
+    return record;
+  });
+};
 
 export default function FreshLaneDashboard() {
   const [data, setData] = useState<any[]>([]);
@@ -46,7 +85,7 @@ export default function FreshLaneDashboard() {
       // Strict Check for valid Supabase Credentials
       if (!supabaseUrl || !supabaseAnonKey || supabaseUrl === 'YOUR_SUPABASE_URL_HERE' || supabaseAnonKey === 'YOUR_SUPABASE_ANON_KEY_HERE') {
         console.log('Using Local Fallback Data Context (Keys not defined)');
-        setData(fallbackStoreData);
+        setData(enrichStoreData(fallbackStoreData));
         setDbSource('Local Demo Fallback');
         setLoading(false);
         return;
@@ -71,7 +110,7 @@ export default function FreshLaneDashboard() {
         
         if (!monthlyError && monthlyData && monthlyData.length > 0) {
           console.log(`Loaded ${monthlyData.length} records from 'Monthly_Activity_Data'`);
-          setData(monthlyData);
+          setData(enrichStoreData(monthlyData));
           setDbSource('Supabase Live [Monthly_Activity_Data]');
         } else {
           console.log("Monthly_Activity_Data table fetch skipped or empty, trying monthly_activity...");
@@ -82,7 +121,7 @@ export default function FreshLaneDashboard() {
           
           if (!monthlyError2 && monthlyData2 && monthlyData2.length > 0) {
             console.log(`Loaded ${monthlyData2.length} records from 'monthly_activity'`);
-            setData(monthlyData2);
+            setData(enrichStoreData(monthlyData2));
             setDbSource('Supabase Live [monthly_activity]');
           } else {
             console.log("monthly_activity table fetch skipped or empty, trying monthly_activity_data...");
@@ -93,7 +132,7 @@ export default function FreshLaneDashboard() {
 
             if (!altError && altData && altData.length > 0) {
               console.log(`Loaded ${altData.length} records from 'monthly_activity_data'`);
-              setData(altData);
+              setData(enrichStoreData(altData));
               setDbSource('Supabase Live [monthly_activity_data]');
             } else {
               throw new Error(monthlyError?.message || monthlyError2?.message || altError?.message || 'Empty datasets returned');
@@ -102,7 +141,7 @@ export default function FreshLaneDashboard() {
         }
       } catch (err) {
         console.error('Supabase load failed, serving premium local fallback data:', err);
-        setData(fallbackStoreData);
+        setData(enrichStoreData(fallbackStoreData));
         setDbSource('Local Fallback (Active Connection Unresolved)');
       } finally {
         setLoading(false);

@@ -7,10 +7,11 @@ interface KpiCardsProps {
   data: any[];
 }
 
+
 export default function KpiCards({ data }: KpiCardsProps) {
   const stats = useMemo(() => {
     if (!data.length) {
-      return { stores: 0, footfall: '0.0M', demand: '0.0%', revenue: '₹0.0M', rating: '0.00' };
+      return { stores: 0, footfall: '0.0 Cr', demand: '0.0%', revenue: '₹0.0 Cr', rating: '0.00' };
     }
 
     const uniqueStores = new Set(data.map(d => d.store_id || d.store_name)).size;
@@ -18,17 +19,36 @@ export default function KpiCards({ data }: KpiCardsProps) {
     const totalFootfall = data.reduce((sum, d) => sum + (d.monthly_footfall || 0), 0);
     const avgDemand = data.reduce((sum, d) => sum + (d.online_sales_pct || 0), 0) / data.length;
     
-    // Revenue is in thousands, so sum * 1000 / 1,000,000 = sum / 1000
     const totalRevenue = data.reduce((sum, d) => sum + (d.revenue_inr_thousand || 0), 0);
     const avgRating = data.reduce((sum, d) => sum + (d.avg_customer_rating || 0), 0) / data.length;
 
+    // Standard Indian Numbering System Formatter
+    const formatIndianNumber = (num: number) => {
+      if (num >= 10000000) {
+        return `${(num / 10000000).toFixed(2)} Cr`;
+      } else if (num >= 100000) {
+        return `${(num / 100000).toFixed(2)} L`;
+      } else {
+        return num.toLocaleString('en-IN');
+      }
+    };
+
+    const formatIndianCurrency = (revenueInThousand: number) => {
+      const rupees = revenueInThousand * 1000;
+      if (rupees >= 10000000) {
+        return `₹${(rupees / 10000000).toFixed(2)} Cr`;
+      } else if (rupees >= 100000) {
+        return `₹${(rupees / 100000).toFixed(2)} L`;
+      } else {
+        return `₹${rupees.toLocaleString('en-IN')}`;
+      }
+    };
+
     return {
       stores: uniqueStores,
-      footfall: totalFootfall >= 1000000 
-        ? `${(totalFootfall / 1000000).toFixed(2)}M` 
-        : `${(totalFootfall / 1000).toFixed(0)}K`,
+      footfall: formatIndianNumber(totalFootfall),
       demand: `${avgDemand.toFixed(1)}%`,
-      revenue: `₹${(totalRevenue / 1000).toFixed(2)}M`,
+      revenue: formatIndianCurrency(totalRevenue),
       rating: avgRating.toFixed(2),
     };
   }, [data]);

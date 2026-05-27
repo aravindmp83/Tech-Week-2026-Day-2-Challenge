@@ -125,10 +125,10 @@ There are **${uniqueStoreIds.length}** active unique FreshLane stores in **${cit
 **Active Stores List (August 2025):**
 ${cityLatestRecords.map((s, idx) => `${idx + 1}. **${s.store_name}** (${s.store_format})
    - ID: \`${s.store_id}\`
-   - Revenue: ₹${s.revenue_inr_thousand}K | Wastage: **${s.fresh_wastage_pct}%** | Customer Rating: **${s.avg_customer_rating} ★**`).join('\n')}
+   - Revenue: ₹${(s.revenue_inr_thousand / 100).toFixed(2)} L | Wastage: **${s.fresh_wastage_pct}%** | Customer Rating: **${s.avg_customer_rating} ★**`).join('\n')}
 
 **Monthly Aggregates for ${cityCapitalized} (August 2025):**
-- **Total City Revenue**: ₹${(totalRev).toLocaleString()}K (₹${(totalRev / 100).toFixed(2)} Lakhs)
+- **Total City Revenue**: ₹${(totalRev / 100).toFixed(2)} Lakhs (₹${(totalRev / 10000).toFixed(2)} Cr)
 - **Average Wastage**: **${avgWastage}%**
 - **Average Customer Rating**: **${avgRating} ★**
 `;
@@ -155,7 +155,7 @@ ${cityLatestRecords.map((s, idx) => `${idx + 1}. **${s.store_name}** (${s.store_
 Across the chain, we operate **${formatLatestRecords.length}** stores in the **${formatLabel}** format in the latest period (August 2025).
 
 **Key Format Statistics (August 2025):**
-- **Total Format Revenue**: ₹${(totalRev / 1000).toFixed(2)}M (₹${totalRev.toLocaleString()} Thousand)
+- **Total Format Revenue**: ₹${(totalRev / 10000).toFixed(2)} Cr (₹${(totalRev / 100).toFixed(2)} Lakhs)
 - **Average Wastage Rate**: **${avgWastage}%**
 - **Average Customer Rating**: **${avgRating} ★**
 
@@ -163,7 +163,7 @@ Across the chain, we operate **${formatLatestRecords.length}** stores in the **$
 ${[...formatLatestRecords]
   .sort((a, b) => b.revenue_inr_thousand - a.revenue_inr_thousand)
   .slice(0, 3)
-  .map(s => `- **${s.store_name}** (${s.city}): Revenue **₹${s.revenue_inr_thousand}K**, Rating: **${s.avg_customer_rating} ★**`)
+  .map(s => `- **${s.store_name}** (${s.city}): Revenue **₹${(s.revenue_inr_thousand / 100).toFixed(2)} L**, Rating: **${s.avg_customer_rating} ★**`)
   .join('\n')}
 `;
     return content + debugFooter;
@@ -197,10 +197,10 @@ ${criticalStores.slice(0, 3).map(s => `- **${s.store_name}** (${s.region}): Wast
 Here are the top-performing stores contributing to the portfolio:
 
 **Top 5 Highest Revenue Stores:**
-${topRevenue.map(s => `- **${s.store_name}** (${s.region}): **₹${(s.revenue_inr_thousand / 100).toFixed(2)}M** (Rating: **${s.avg_customer_rating} ★**, Footfall: **${s.monthly_footfall.toLocaleString()}**)`).join('\n')}
+${topRevenue.map(s => `- **${s.store_name}** (${s.region}): **₹${(s.revenue_inr_thousand / 100).toFixed(2)} L** (Rating: **${s.avg_customer_rating} ★**, Footfall: **${s.monthly_footfall.toLocaleString()}**)`).join('\n')}
 
 **Global Portfolio Statistics:**
-- **Total Cumulative Revenue Logged**: ₹${(summary.total_revenue_K / 1000).toFixed(2)}M
+- **Total Cumulative Revenue Logged**: ₹${(summary.total_revenue_K / 10000).toFixed(2)} Cr (₹${(summary.total_revenue_K / 100).toFixed(2)} Lakhs)
 - **Average Customer Rating**: **${summary.avg_rating} ★**
 - **Average Wastage Rate**: **${summary.avg_wastage_pct}%**
 `;
@@ -218,12 +218,12 @@ ${topRevenue.map(s => `- **${s.store_name}** (${s.region}): **₹${(s.revenue_in
 Detailed audit for the **${regionName}** region:
 
 - **Store Count**: ${regSummary ? regSummary.record_count / 20 : regionStores.length} active locations
-- **Cumulative Revenue**: ₹${regSummary ? (regSummary.total_revenue_K / 1000).toFixed(2) : '0.00'}M
+- **Cumulative Revenue**: ₹${regSummary ? (regSummary.total_revenue_K / 10000).toFixed(2) : '0.00'} Cr
 - **Average Wastage Rate**: **${regSummary ? regSummary.avg_wastage_pct : '0.00'}%**
 - **Average Customer Rating**: **${regSummary ? regSummary.avg_rating : '0.00'} ★**
 
 **Key Store Highlights (August 2025):**
-- 🌟 **Star Performer**: **${topStore ? topStore.store_name : 'N/A'}** generating **₹${topStore ? (topStore.revenue_inr_thousand / 100).toFixed(2) : '0.00'}M** with a **${topStore ? topStore.avg_customer_rating : '0'} ★** rating.
+- 🌟 **Star Performer**: **${topStore ? topStore.store_name : 'N/A'}** generating **₹${topStore ? (topStore.revenue_inr_thousand / 100).toFixed(2) : '0.00'} L** with a **${topStore ? topStore.avg_customer_rating : '0'} ★** rating.
 - ⚠️ **Operational Target**: **${worstStore ? worstStore.store_name : 'N/A'}** showing a low rating of **${worstStore ? worstStore.avg_customer_rating : '0'} ★** (Wastage: **${worstStore ? worstStore.fresh_wastage_pct : '0'}%**).
 `;
   } else {
@@ -233,13 +233,13 @@ Here is the global executive summary of operations:
 | Metric | Portfolio Value |
 | :--- | :--- |
 | **Total Stores Logs** | ${summary.total_records} records (126 unique stores) |
-| **Total Cumulative Revenue** | ₹${(summary.total_revenue_K / 1000).toFixed(2)}M |
+| **Total Cumulative Revenue** | ₹${(summary.total_revenue_K / 10000).toFixed(2)} Cr |
 | **Average Customer Rating** | ${summary.avg_rating} ★ |
 | **Average Fresh Produce Wastage** | ${summary.avg_wastage_pct}% |
 | **Total Footfall Count** | ${summary.total_footfall.toLocaleString()} visits |
 
 **Regional Revenue & Efficiency Matrix:**
-${summary.regions.map((r: any) => `- **${r.region}**: Revenue **₹${(r.total_revenue_K / 1000).toFixed(2)}M**, Avg Rating **${r.avg_rating} ★**, Wastage **${r.avg_wastage_pct}%**`).join('\n')}
+${summary.regions.map((r: any) => `- **${r.region}**: Revenue **₹${(r.total_revenue_K / 10000).toFixed(2)} Cr**, Avg Rating **${r.avg_rating} ★**, Wastage **${r.avg_wastage_pct}%**`).join('\n')}
 `;
   }
 
@@ -420,7 +420,7 @@ Your goal is to answer executive questions with high precision, basing all facts
 
 GLOBAL DATASETS OVERVIEW (Full 2,520 records summary):
 - Total Logs Count: ${globalSummary.total_records}
-- Total Cumulative Revenue: ₹${(globalSummary.total_revenue_K / 1000).toFixed(2)}M (₹${globalSummary.total_revenue_K} Thousand)
+- Total Cumulative Revenue: ₹${(globalSummary.total_revenue_K / 10000).toFixed(2)} Cr (₹${(globalSummary.total_revenue_K / 100).toFixed(2)} Lakhs)
 - Average Wastage rate: ${globalSummary.avg_wastage_pct}%
 - Average Customer Rating: ${globalSummary.avg_rating} ★
 - Total Footfall: ${globalSummary.total_footfall.toLocaleString()}
